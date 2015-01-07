@@ -1,0 +1,15 @@
+.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.directory
+.project
+.settings/
+
+.gradle/
+build/
+target/
+
+mods/
+/.hg/

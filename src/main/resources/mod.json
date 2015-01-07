@@ -1,0 +1,15 @@
+{
+
+  "main":"eu.socie.mongo_async_persistor.AsyncMongoPersistor",
+
+
+  "description":"Mongo Persistor based on the asynchronous MongoDB driver",
+  "licenses": ["The Apache Software License Version 2.0"],
+  "author": "Bram Wiekens",
+
+  "developers": [],
+  "keywords": ["MongoDB", "Asynchronous"],
+  "homepage": "url to your project page",
+
+  "auto-redeploy": true
+}
