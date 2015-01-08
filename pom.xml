@@ -3,18 +3,21 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>eu.socie</groupId>
 	<artifactId>mongo-async-persistor</artifactId>
 	<packaging>jar</packaging>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>Project - mongo-async-persistor</name>
-	<url>http://maven.apache.org</url>
+	<name>mongo-async-persistor</name>
+	<url>https://github.com/wieki/vertx-map</url>
 
 	<parent>
-		<groupId>org.sonatype.oss</groupId>
-		<artifactId>oss-parent</artifactId>
-		<version>7</version>
+		<groupId>eu.socie</groupId>
+		<artifactId>socie-oss</artifactId>
+		<version>1</version>
 	</parent>
+
+	<scm>
+		<url>https://github.com/wieki/vertx-map</url>
+	</scm>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -46,9 +49,8 @@
 		<mongo.async_driver.version>2.0.1</mongo.async_driver.version>
 
 		<!--Plugin versions -->
-		<maven.compiler.plugin.version>3.0</maven.compiler.plugin.version>
 		<maven.resources.plugin.version>2.6</maven.resources.plugin.version>
-		<maven.clean.plugin.version>2.5</maven.clean.plugin.version>
+		<maven.clean.plugin.version>2.6.1</maven.clean.plugin.version>
 		<maven.vertx.plugin.version>2.0.11-final</maven.vertx.plugin.version>
 		<maven.surefire.plugin.version>2.14</maven.surefire.plugin.version>
 		<maven.failsafe.plugin.version>2.14</maven.failsafe.plugin.version>
@@ -56,13 +58,6 @@
 		<maven.javadoc.plugin.version>2.9</maven.javadoc.plugin.version>
 		<maven.dependency.plugin.version>2.7</maven.dependency.plugin.version>
 	</properties>
-
-	<repositories>
-		<repository>
-			<id>sonatype-nexus-snapshots</id>
-			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
-		</repository>
-	</repositories>
 
 	<dependencies>
 		<!--Vertx provided dependencies -->
@@ -72,13 +67,9 @@
 			<version>${vertx.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		<!-- <dependency>
-			<groupId>io.vertx</groupId>
-			<artifactId>vertx-core</artifactId>
-			<version>${vertx.version}</version>
-			<scope>provided</scope>
-			<classifier>sources</classifier>
-		</dependency> -->
+		<!-- <dependency> <groupId>io.vertx</groupId> <artifactId>vertx-core</artifactId> 
+			<version>${vertx.version}</version> <scope>provided</scope> <classifier>sources</classifier> 
+			</dependency> -->
 		<dependency>
 			<groupId>io.vertx</groupId>
 			<artifactId>vertx-platform</artifactId>
@@ -118,11 +109,8 @@
 		</dependency>
 
 		<!-- Consider using bson4jackson converter -->
-		<!-- <dependency>
-				<groupId>de.undercouch</groupId>
-				<artifactId>bson4jackson</artifactId>
-				<version>${bson4jackson.version}</version>
-			</dependency> -->
+		<!-- <dependency> <groupId>de.undercouch</groupId> <artifactId>bson4jackson</artifactId> 
+			<version>${bson4jackson.version}</version> </dependency> -->
 
 	</dependencies>
 
@@ -169,15 +157,6 @@
 			</plugin>
 
 			<!-- Other plugins required by the build -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>${maven.compiler.plugin.version}</version>
-				<configuration>
-					<source>1.8</source>
-					<target>1.8</target>
-				</configuration>
-			</plugin>
 			<plugin>
 				<artifactId>maven-resources-plugin</artifactId>
 				<version>${maven.resources.plugin.version}</version>
@@ -320,4 +299,7 @@
 			</plugin>
 		</plugins>
 	</reporting>
+	<issueManagement>
+		<url>https://github.com/wieki/vertx-map/issues</url>
+	</issueManagement>
 </project>
