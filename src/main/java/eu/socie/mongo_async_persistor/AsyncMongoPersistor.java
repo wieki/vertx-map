@@ -24,7 +24,6 @@ import java.util.Set;
 import org.vertx.java.core.VertxException;
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.file.AsyncFile;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.logging.Logger;
@@ -49,8 +48,10 @@ import eu.socie.mongo_async_persistor.util.MongoJsonEncoder;
 import eu.socie.mongo_async_persistor.util.MongoUtil;
 
 /**
- * This verticle handles requests to store data in a MongoDB instance. It use
- * the Async Mongo driver to fit right into vertx
+ * This verticle handles requests to store data in a MongoDB instance. It uses
+ * the Async Mongo driver to fit right into vertx. 
+ * 
+ * @see <a href="http://www.allanbank.com/mongodb-async-driver/index.html">Allanbank Async Mongo Driver</a>
  */
 public class AsyncMongoPersistor extends Verticle {
 
@@ -60,7 +61,7 @@ public class AsyncMongoPersistor extends Verticle {
 	public static final String CONFIG_USER = "user";
 	public static final String CONFIG_PASSWORD = "password";
 	public static final String CONFIG_CHUNCK_SIZE = "chuck_size";
-	
+
 	public static final String DEFAULT_HOST = "localhost";
 	public static final String DEFAULT_PORT = "27017";
 	public static final String DEFAULT_DATABASE = "test";
@@ -71,20 +72,23 @@ public class AsyncMongoPersistor extends Verticle {
 	public static final String EVENT_DB_DELETE = "mongo.async.delete";
 	public static final String EVENT_DB_GET_FILE = "mongo.async.get_file";
 
-	public static final int ERROR_COLLECTION_NAME_CODE = 1001;
-	public static final int ERROR_QUERY_CODE = 1002;
-	public static final int ERROR_QUERY_DOCUMENT_CODE = 1003;
-	public static final int ERROR_WRONG_MESSAGE_TYPE = 1004;
-
 	public static final String QUERY_LIMIT = "limit";
 	public static final String QUERY_SORT = "sort";
 	public static final String QUERY_SKIP = "skip";
+
+	public static final int ERROR_COLLECTION_NAME_CODE = 1001;
+	public static final int ERROR_QUERY_CODE = 1002;
+	public static final int ERROR_QUERY_DOCUMENT_CODE = 1003;
+	public static final int ERROR_WRONG_TYPE_CODE = 1004;
+	public static final int ERROR_NO_FILE_FOR_ID_CODE = 1005;
+	public static final int ERROR_NO_ID_QUERY_CODE = 1006;
 
 	// TODO consider localization
 	public static final String ERROR_COLLECTION_NAME_MSG = "No collection name in query";
 	public static final String ERROR_QUERY_DOCUMENT_MSG = "No query document found";
 	public static final String ERROR_WRONG_TYPE_MSG = "Wrong message type, should be JSON";
-	
+	public static final String ERROR_NO_FILE_FOR_ID_MSG = "File with id %s could not be retrieved";
+	public static final String ERROR_NO_ID_QUERY_MSG = "The query contains no id";
 
 	private MongoDatabase mongodb;
 	private AsyncGridFs gridFs;
@@ -107,27 +111,44 @@ public class AsyncMongoPersistor extends Verticle {
 		vertx.eventBus().registerHandler(EVENT_DB_DELETE,
 				(Message<JsonObject> q) -> delete(q));
 
-		vertx.eventBus().registerHandler(EVENT_DB_GET_FILE, (Message<JsonObject> q) -> getFile(q));
-		
+		vertx.eventBus().registerHandler(EVENT_DB_GET_FILE,
+				(Message<JsonObject> q) -> getFile(q));
+
 		log.info("Starting Mongo Async Persistor");
 	}
-	
-	private void getFile(Message<JsonObject> getFile){
+
+	/**
+	 * Retrieve a file on basis of its ObjectId. The contents of the file is
+	 * written back in a buffer to the even source
+	 * 
+	 * @param fileMsg
+	 *            is the query message that contains the id of the file to
+	 *            retrieve.
+	 */
+	private void getFile(Message<JsonObject> fileMsg) {
+		String id = "";
+
 		try {
-			//AsyncFile file = vertx.fileSystem().openSync("/tmp/file.jpg");
-			
-		
-			Buffer buffer = new Buffer();
-			
-			gridFs.read(new ObjectId("539823dae4b0d0bd02444669"),  buffer );
-			
-			getFile.reply(buffer);
-			
-			
-			} catch (IllegalArgumentException | IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			JsonObject fileQuery = fileMsg.body();
+			if (!fileQuery.containsField("_id")) {
+				castError(fileMsg, ERROR_NO_ID_QUERY_CODE,
+						ERROR_NO_ID_QUERY_MSG);
+				return;
+			} else {
+				JsonObject idObj = fileQuery.getObject("_id");
+				id = idObj.getString("$oid");
 			}
+
+			Buffer buffer = new Buffer();
+
+			gridFs.read(new ObjectId(id), buffer);
+
+			fileMsg.reply(buffer);
+
+		} catch (IllegalArgumentException | IOException e) {
+			castError(fileMsg, ERROR_NO_FILE_FOR_ID_CODE,
+					String.format(ERROR_NO_FILE_FOR_ID_MSG, id));
+		}
 	}
 
 	/**
@@ -252,7 +273,7 @@ public class AsyncMongoPersistor extends Verticle {
 	 */
 	public void find(Message<JsonObject> findMessage) {
 		if (!(findMessage.body() instanceof JsonObject)) {
-			findMessage.fail(ERROR_WRONG_MESSAGE_TYPE, ERROR_WRONG_TYPE_MSG);
+			findMessage.fail(ERROR_WRONG_TYPE_CODE, ERROR_WRONG_TYPE_MSG);
 			throw new VertxException(ERROR_WRONG_TYPE_MSG);
 		}
 
@@ -276,7 +297,7 @@ public class AsyncMongoPersistor extends Verticle {
 					ERROR_QUERY_DOCUMENT_MSG);
 
 		String findStr = MongoJsonEncoder.encode(find);
-		
+
 		Document doc = Json.parse(findStr);
 
 		Find query = createFindQuery(findQuery, doc);
@@ -397,35 +418,29 @@ public class AsyncMongoPersistor extends Verticle {
 
 		MongoClient mongoClient = MongoFactory.createClient(config);
 
-
 		MongoDatabase mongodb = mongoClient.getDatabase(database);
 
 		return mongodb;
 	}
-	
-	private AsyncGridFs initGridFs(JsonObject modConfig){
+
+	private AsyncGridFs initGridFs(JsonObject modConfig) {
 		AsyncGridFs gridFs = new AsyncGridFs(mongodb);
-		
-		if (modConfig.containsField(CONFIG_CHUNCK_SIZE)){
+
+		if (modConfig.containsField(CONFIG_CHUNCK_SIZE)) {
 			Number chunkSize = modConfig.getNumber(CONFIG_CHUNCK_SIZE);
-			
+
 			gridFs.setChunkSize(chunkSize.intValue());
 		}
-		
+
 		return gridFs;
 	}
-	
-
 
 	// FIXME This only the bare minimum of password security should at least be
 	// taken from file
 	private Credential createCredentials(String userName, char[] password,
 			String database) {
-		return Credential.builder()
-				.userName(userName)
-				.password(password)
-				.database(database)
-				.build();
+		return Credential.builder().userName(userName).password(password)
+				.database(database).build();
 	}
 
 }

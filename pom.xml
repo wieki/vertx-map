@@ -19,6 +19,20 @@
 		<url>https://github.com/wieki/vertx-map</url>
 	</scm>
 
+	<repositories>
+		<repository>
+			<releases>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
+			<id>allanbank</id>
+			<name>Allanbank Releases</name>
+			<url>http://www.allanbank.com/repo/</url>
+			<layout>default</layout>
+		</repository>
+	</repositories>
+
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
