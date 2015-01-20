@@ -1,7 +1,7 @@
 package eu.socie.mongo_async_persistor;
 
 /**
- * Copyright 2014 Socie
+ * Copyright 2015 Socie
  *
  * Socie licenses this file to you under the Apache License, version 2.0
  * (the "License"); you may not use this file except in compliance with the
