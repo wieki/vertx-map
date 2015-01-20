@@ -1,6 +1,6 @@
 package eu.socie.mongo_async_persistor;
 
-/*
+/**
  * Copyright 2014 Socie
  *
  * Socie licenses this file to you under the Apache License, version 2.0
@@ -15,13 +15,16 @@ package eu.socie.mongo_async_persistor;
  * License for the specific language governing permissions and limitations
  * under the License.
  *
- * @author Bram Wiekens</a>
+ * @author Bram Wiekens
  */
 
+import java.io.IOException;
 import java.util.Set;
 
 import org.vertx.java.core.VertxException;
+import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.eventbus.Message;
+import org.vertx.java.core.file.AsyncFile;
 import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.logging.Logger;
@@ -36,6 +39,7 @@ import com.allanbank.mongodb.MongoFactory;
 import com.allanbank.mongodb.MongoIterator;
 import com.allanbank.mongodb.bson.Document;
 import com.allanbank.mongodb.bson.DocumentAssignable;
+import com.allanbank.mongodb.bson.element.ObjectId;
 import com.allanbank.mongodb.bson.element.ObjectIdElement;
 import com.allanbank.mongodb.bson.json.Json;
 import com.allanbank.mongodb.builder.Find;
@@ -55,7 +59,8 @@ public class AsyncMongoPersistor extends Verticle {
 	public static final String CONFIG_DATABASE_NAME = "database_name";
 	public static final String CONFIG_USER = "user";
 	public static final String CONFIG_PASSWORD = "password";
-
+	public static final String CONFIG_CHUNCK_SIZE = "chuck_size";
+	
 	public static final String DEFAULT_HOST = "localhost";
 	public static final String DEFAULT_PORT = "27017";
 	public static final String DEFAULT_DATABASE = "test";
@@ -64,6 +69,7 @@ public class AsyncMongoPersistor extends Verticle {
 	public static final String EVENT_DB_FIND = "mongo.async.find";
 	public static final String EVENT_DB_UPDATE = "mongo.async.update";
 	public static final String EVENT_DB_DELETE = "mongo.async.delete";
+	public static final String EVENT_DB_GET_FILE = "mongo.async.get_file";
 
 	public static final int ERROR_COLLECTION_NAME_CODE = 1001;
 	public static final int ERROR_QUERY_CODE = 1002;
@@ -78,8 +84,10 @@ public class AsyncMongoPersistor extends Verticle {
 	public static final String ERROR_COLLECTION_NAME_MSG = "No collection name in query";
 	public static final String ERROR_QUERY_DOCUMENT_MSG = "No query document found";
 	public static final String ERROR_WRONG_TYPE_MSG = "Wrong message type, should be JSON";
+	
 
 	private MongoDatabase mongodb;
+	private AsyncGridFs gridFs;
 	private Logger log;
 
 	public void start() {
@@ -88,6 +96,7 @@ public class AsyncMongoPersistor extends Verticle {
 		JsonObject modConfig = getContainer().config();
 
 		mongodb = connectToDatabase(modConfig);
+		gridFs = initGridFs(modConfig);
 
 		vertx.eventBus().registerHandler(EVENT_DB_FIND,
 				(Message<JsonObject> q) -> find(q));
@@ -98,7 +107,27 @@ public class AsyncMongoPersistor extends Verticle {
 		vertx.eventBus().registerHandler(EVENT_DB_DELETE,
 				(Message<JsonObject> q) -> delete(q));
 
+		vertx.eventBus().registerHandler(EVENT_DB_GET_FILE, (Message<JsonObject> q) -> getFile(q));
+		
 		log.info("Starting Mongo Async Persistor");
+	}
+	
+	private void getFile(Message<JsonObject> getFile){
+		try {
+			//AsyncFile file = vertx.fileSystem().openSync("/tmp/file.jpg");
+			
+		
+			Buffer buffer = new Buffer();
+			
+			gridFs.read(new ObjectId("539823dae4b0d0bd02444669"),  buffer );
+			
+			getFile.reply(buffer);
+			
+			
+			} catch (IllegalArgumentException | IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 	}
 
 	/**
@@ -368,10 +397,25 @@ public class AsyncMongoPersistor extends Verticle {
 
 		MongoClient mongoClient = MongoFactory.createClient(config);
 
+
 		MongoDatabase mongodb = mongoClient.getDatabase(database);
 
 		return mongodb;
 	}
+	
+	private AsyncGridFs initGridFs(JsonObject modConfig){
+		AsyncGridFs gridFs = new AsyncGridFs(mongodb);
+		
+		if (modConfig.containsField(CONFIG_CHUNCK_SIZE)){
+			Number chunkSize = modConfig.getNumber(CONFIG_CHUNCK_SIZE);
+			
+			gridFs.setChunkSize(chunkSize.intValue());
+		}
+		
+		return gridFs;
+	}
+	
+
 
 	// FIXME This only the bare minimum of password security should at least be
 	// taken from file
