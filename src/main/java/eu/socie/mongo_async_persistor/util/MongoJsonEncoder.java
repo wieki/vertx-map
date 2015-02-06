@@ -19,52 +19,52 @@ import org.vertx.java.core.json.JsonObject;
 public class MongoJsonEncoder {
 
 	private static final String ID = "_id";
+	private final static String ISO_DATE = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.\\d{3}(-|\\+)\\d{4}";
 
 	private MongoJsonEncoder() {
 	}
 
 	public static String encode(JsonObject obj) {
-		
+
 		Map<String, Object> map = obj.toMap();
-	
+
 		return encode(map);
 	}
-		
+
 	@SuppressWarnings("unchecked")
-	public static String encode(Map<String,Object> map) {
-	
+	public static String encode(Map<String, Object> map) {
+
 		StringBuilder result = new StringBuilder("{");
-		
-		
 
 		for (Entry<String, Object> entry : map.entrySet()) {
 			Object val = entry.getValue();
 			String key = entry.getKey();
-			
+
 			if (map.containsKey("$oid")) {
 				String oid = (String) map.get("$oid");
-				
-				return (String.format("ObjectId(\"%s\")",oid));
-			}			
-			
-			//System.out.println(key + " "+ val.getClass());
+
+				return (String.format("ObjectId(\"%s\")", oid));
+			}
 
 			if (val instanceof String) {
-				result.append(encodeString(key, (String) val));
+				if (((String) val).matches(ISO_DATE)) {
+					result.append(encodeDate(key, (String) val));
+				} else {
+					result.append(encodeString(key, (String) val));
+				}
 			}
 
 			if (val instanceof Number) {
 				result.append(encodeNumber(key, (Number) val));
 			}
-			
-			if (val instanceof Map<?,?>) {
-				result.append(String.format("%s : %s", key, encode((Map<String,Object>)val)));
+
+			if (val instanceof Map<?, ?>) {
+				result.append(String.format("%s : %s", key,
+						encode((Map<String, Object>) val)));
 			}
 
-			// TODO Date types
-
 			// TODO DBref types
-			
+
 			// TODO other types
 
 			result.append(',');
@@ -80,7 +80,24 @@ public class MongoJsonEncoder {
 		return result.toString();
 	}
 
-	public static String encodeNumber(String key, Number num) {
+	/**
+	 * Convert an ISO date String to a ISO date element for Mongo. Note that no
+	 * timezone information is stored at the moment stored information is in UTC
+	 * time.
+	 * 
+	 * @param key
+	 *            is the key of the json element
+	 * @param date
+	 *            is the date string to be convert
+	 * @return a ISODate encoded string
+	 */
+	public static String encodeDate(final String key, final String date) {
+
+		return String.format("\"%s\" : Date(\"%s\")", key, date);
+
+	}
+
+	public static String encodeNumber(final String key, final Number num) {
 		String result = num.toString();
 
 		if (!result.contains(".")) {
@@ -92,9 +109,13 @@ public class MongoJsonEncoder {
 	}
 
 	/**
-	 * Encode a string to a proper bson value, if the value is an ObjectId create an ObjectId object 
-	 * @param key is the key of the json element
-	 * @param val the string value to be check and converted
+	 * Encode a string to a proper bson value, if the value is an ObjectId
+	 * create an ObjectId object
+	 * 
+	 * @param key
+	 *            is the key of the json element
+	 * @param val
+	 *            the string value to be check and converted
 	 * @return a properly encoded bson string
 	 */
 	private static String encodeString(final String key, String val) {

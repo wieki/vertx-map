@@ -27,8 +27,10 @@ import com.allanbank.mongodb.bson.element.ArrayElement;
 import com.allanbank.mongodb.bson.element.DocumentElement;
 import com.allanbank.mongodb.bson.element.DoubleElement;
 import com.allanbank.mongodb.bson.element.IntegerElement;
+import com.allanbank.mongodb.bson.element.LongElement;
 import com.allanbank.mongodb.bson.element.ObjectIdElement;
 import com.allanbank.mongodb.bson.element.StringElement;
+import com.allanbank.mongodb.bson.element.TimestampElement;
 import com.allanbank.mongodb.bson.json.Json;
 
 /**
@@ -40,6 +42,9 @@ import com.allanbank.mongodb.bson.json.Json;
  */
 public class MongoUtil {
 
+	//private final static String ISO_DATE = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
+	
+	
 	/**
 	 * Converts a JsonObject to a MongoDB Document
 	 * 
@@ -83,13 +88,16 @@ public class MongoUtil {
 		for (Element element : elements) {
 
 			String name = element.getName();
-
+		
 			if (element instanceof StringElement) {
 				obj.putString(name, ((StringElement) element).getValue());
 			}
 			if (element instanceof ObjectIdElement) {
 				String id = ((ObjectIdElement) element).getId().toHexString();
 				obj.putString(name, id);
+			}
+			if (element instanceof LongElement) {
+				obj.putNumber(name, ((LongElement) element).getValue());
 			}
 			if (element instanceof IntegerElement) {
 				obj.putNumber(name, ((IntegerElement) element).getValue());
@@ -101,6 +109,13 @@ public class MongoUtil {
 				obj.putObject(name,
 						serialize(((DocumentElement) element).getDocument()));
 			}
+			if (element instanceof TimestampElement){
+				String val = ((TimestampElement) element).getValueAsString();
+				int firstQuote = val.indexOf('\'');
+				int lastQuote = val.indexOf('\'', firstQuote+1);
+				
+				obj.putString(name, val.substring(firstQuote+1, lastQuote));
+			}
 
 			if (element instanceof ArrayElement) {
 				JsonArray arr = serialize((ArrayElement) element);
@@ -111,7 +126,6 @@ public class MongoUtil {
 		return obj;
 	}
 
-
 	private static JsonArray serialize(ArrayElement array) {
 
 		JsonArray arr = new JsonArray();
@@ -121,7 +135,7 @@ public class MongoUtil {
 			if (element instanceof ObjectIdElement) {
 				String id = ((ObjectIdElement) element).getId().toHexString();
 				arr.add(id);
-			}			
+			}
 			if (element instanceof StringElement) {
 				arr.add(((StringElement) element).getValue());
 			}
@@ -164,15 +178,14 @@ public class MongoUtil {
 
 		return obj;
 	}
-	
-	
-	public static JsonObject createIdReference(String id){
+
+	public static JsonObject createIdReference(String id) {
 		JsonObject obj = new JsonObject();
-		
+
 		obj.putString("$oid", id);
-		
+
 		return obj;
-		
+
 	}
-	
+
 }
