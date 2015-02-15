@@ -4,6 +4,7 @@
 package eu.socie.mongo_async_persistor.util;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -63,9 +64,11 @@ public class MongoJsonEncoder {
 				result.append(String.format("%s : %s", key,
 						encode((Map<String, Object>) val)));
 			}
-			
+
 			if (val instanceof ArrayList<?>) {
-				result.append(String.format("%s : [ \"abc\" ]", key));
+				String encodeStr = encodeArray((ArrayList<?>) val);
+
+				result.append(String.format("%s : [ %s ]", key, encodeStr));
 			}
 
 			// TODO DBref types
@@ -83,6 +86,107 @@ public class MongoJsonEncoder {
 		result.append("}");
 
 		return result.toString();
+	}
+	
+	@SuppressWarnings("unchecked")
+	private static String encodeArray(ArrayList<?> array) {
+		Iterator<?> iterator = array.iterator();
+
+		Object first = iterator.next();
+
+		// TODO Add support for list of ObjectId's
+		
+		if (first != null && first instanceof String) {
+
+			if (!iterator.hasNext()) {
+				return first == null ? "" : first.toString();
+			}
+
+			return encodeStringArray(first.toString(), iterator);
+		}
+		
+		if (first != null && first instanceof Number) {
+
+			if (!iterator.hasNext()) {
+				return first == null ? "" : first.toString();
+			}
+
+			return encodeNumberArray((Number) first, iterator);
+		}
+		
+		if (first != null && first instanceof Map<?,?>) {
+
+			if (!iterator.hasNext()) {
+				return first == null ? "" : encode((Map<String,Object>) first);
+			}
+
+			return encodeJsonObjectArray((Map<?,?>) first, iterator);
+		}
+		
+		return "";
+
+	}
+
+	@SuppressWarnings("unchecked")
+	private static String encodeJsonObjectArray(Map<?,?> first, Iterator<?> iterator) {
+		
+		StringBuffer buf = new StringBuffer(256);
+		
+		if (first != null ) {
+			buf.append(encode((Map<String, Object>) first));
+		}
+		
+		while (iterator.hasNext()) {
+			buf.append(',');
+			Map<String,Object> obj = (Map<String,Object>) iterator.next();
+			if (obj != null) {
+				buf.append(encode(obj));
+			}
+		}
+		
+		return buf.toString();
+	}
+	
+	private static String encodeNumberArray(Number first, Iterator<?> iterator) {
+		// two or more elements
+				StringBuffer buf = new StringBuffer(256); 
+				
+				if (first != null) {
+					buf.append(first.toString());
+				}
+
+				while (iterator.hasNext()) {
+					buf.append(',');
+					Number obj = (Number) iterator.next();
+					if (obj != null) {
+						buf.append(obj.toString());
+					}
+				}
+
+				return buf.toString();
+
+	}
+	
+	
+	private static String encodeStringArray(String first, Iterator<?> iterator) {
+
+		// two or more elements
+		StringBuffer buf = new StringBuffer(256); // Java default is 16,
+													// probably too small
+		if (first != null) {
+			buf.append(first);
+		}
+
+		while (iterator.hasNext()) {
+			buf.append(',');
+			Object obj = iterator.next();
+			if (obj != null) {
+				buf.append(obj);
+			}
+		}
+
+		return buf.toString();
+
 	}
 
 	/**
