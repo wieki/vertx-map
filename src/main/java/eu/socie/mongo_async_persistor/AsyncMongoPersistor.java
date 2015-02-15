@@ -403,7 +403,7 @@ public class AsyncMongoPersistor extends Verticle {
 		String username = modConfig.getString(CONFIG_USER);
 		String password = modConfig.getString(CONFIG_PASSWORD);
 
-		log.debug(String.format(
+		log.info(String.format(
 				"Connecting to database \"%s\" on port \"%s\" on host \"%s\" ",
 				database, port, host));
 

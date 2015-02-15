@@ -9,7 +9,7 @@
 
   "developers": [],
   "keywords": ["MongoDB", "Asynchronous"],
-  "homepage": "url to your project page",
+  "homepage": "https://github.com/wieki/vertx-map",
 
   "auto-redeploy": true
 }

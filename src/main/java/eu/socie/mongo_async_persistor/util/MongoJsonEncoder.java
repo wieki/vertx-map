@@ -3,6 +3,7 @@
  */
 package eu.socie.mongo_async_persistor.util;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -61,6 +62,10 @@ public class MongoJsonEncoder {
 			if (val instanceof Map<?, ?>) {
 				result.append(String.format("%s : %s", key,
 						encode((Map<String, Object>) val)));
+			}
+			
+			if (val instanceof ArrayList<?>) {
+				result.append(String.format("%s : [ \"abc\" ]", key));
 			}
 
 			// TODO DBref types
