@@ -63,7 +63,11 @@ public class MongoJsonEncoder {
 					result.append(encodeString(key, (String) val));
 				}
 			}
-
+			
+			if (val instanceof Boolean) {
+				result.append(encodeBoolean(key, (Boolean) val));
+			}
+			
 			if (val instanceof Number) {
 				result.append(encodeNumber(key, (Number) val));
 			}
@@ -95,6 +99,7 @@ public class MongoJsonEncoder {
 
 		return result.toString();
 	}
+
 
 	@SuppressWarnings("unchecked")
 	private static String encodeArray(ArrayList<?> array) {
@@ -197,6 +202,10 @@ public class MongoJsonEncoder {
 
 	}
 
+	private static String encodeBoolean(final String key, final Boolean bool){
+		return String.format("\"%s\" : %s", key, bool.toString());
+	}
+	
 	/**
 	 * Convert an String ID to a id element for Mongo.
 	 * 
