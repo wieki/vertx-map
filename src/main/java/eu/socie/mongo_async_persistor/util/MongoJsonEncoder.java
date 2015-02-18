@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Pattern;
 
 import org.vertx.java.core.json.JsonObject;
 
@@ -22,6 +23,7 @@ public class MongoJsonEncoder {
 
 	private static final String ID = "_id";
 	private final static String ISO_DATE = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.\\d{3}(-|\\+)\\d{4}";
+	private final static String MONGO_ID = "^([a-z0-9]){24}$";
 
 	private MongoJsonEncoder() {
 	}
@@ -33,6 +35,14 @@ public class MongoJsonEncoder {
 		return encode(map);
 	}
 
+	private static boolean isId(String key, String value) {
+		if (key.endsWith("_id")) {
+			return Pattern.matches(MONGO_ID, value);
+		}
+
+		return false;
+	}
+
 	@SuppressWarnings("unchecked")
 	public static String encode(Map<String, Object> map) {
 
@@ -42,14 +52,12 @@ public class MongoJsonEncoder {
 			Object val = entry.getValue();
 			String key = entry.getKey();
 
-			if (map.containsKey("$oid")) {
-				String oid = (String) map.get("$oid");
-
-				return (String.format("ObjectId(\"%s\")", oid));
-			}
-
 			if (val instanceof String) {
-				if (((String) val).matches(ISO_DATE)) {
+				// Assume that fields that end on _id are ObjectId references,
+				// then check if assumption is true
+				if (isId(key, (String) val)) {
+					result.append(encodeId(key, (String) val));
+				} else if (((String) val).matches(ISO_DATE)) {
 					result.append(encodeDate(key, (String) val));
 				} else {
 					result.append(encodeString(key, (String) val));
@@ -87,7 +95,7 @@ public class MongoJsonEncoder {
 
 		return result.toString();
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private static String encodeArray(ArrayList<?> array) {
 		Iterator<?> iterator = array.iterator();
@@ -95,7 +103,7 @@ public class MongoJsonEncoder {
 		Object first = iterator.next();
 
 		// TODO Add support for list of ObjectId's
-		
+
 		if (first != null && first instanceof String) {
 
 			if (!iterator.hasNext()) {
@@ -104,7 +112,7 @@ public class MongoJsonEncoder {
 
 			return encodeStringArray(first.toString(), iterator);
 		}
-		
+
 		if (first != null && first instanceof Number) {
 
 			if (!iterator.hasNext()) {
@@ -113,61 +121,61 @@ public class MongoJsonEncoder {
 
 			return encodeNumberArray((Number) first, iterator);
 		}
-		
-		if (first != null && first instanceof Map<?,?>) {
+
+		if (first != null && first instanceof Map<?, ?>) {
 
 			if (!iterator.hasNext()) {
-				return first == null ? "" : encode((Map<String,Object>) first);
+				return first == null ? "" : encode((Map<String, Object>) first);
 			}
 
-			return encodeJsonObjectArray((Map<?,?>) first, iterator);
+			return encodeJsonObjectArray((Map<?, ?>) first, iterator);
 		}
-		
+
 		return "";
 
 	}
 
 	@SuppressWarnings("unchecked")
-	private static String encodeJsonObjectArray(Map<?,?> first, Iterator<?> iterator) {
-		
+	private static String encodeJsonObjectArray(Map<?, ?> first,
+			Iterator<?> iterator) {
+
 		StringBuffer buf = new StringBuffer(256);
-		
-		if (first != null ) {
+
+		if (first != null) {
 			buf.append(encode((Map<String, Object>) first));
 		}
-		
+
 		while (iterator.hasNext()) {
 			buf.append(',');
-			Map<String,Object> obj = (Map<String,Object>) iterator.next();
+			Map<String, Object> obj = (Map<String, Object>) iterator.next();
 			if (obj != null) {
 				buf.append(encode(obj));
 			}
 		}
-		
+
 		return buf.toString();
 	}
-	
+
 	private static String encodeNumberArray(Number first, Iterator<?> iterator) {
 		// two or more elements
-				StringBuffer buf = new StringBuffer(256); 
-				
-				if (first != null) {
-					buf.append(first.toString());
-				}
+		StringBuffer buf = new StringBuffer(256);
 
-				while (iterator.hasNext()) {
-					buf.append(',');
-					Number obj = (Number) iterator.next();
-					if (obj != null) {
-						buf.append(obj.toString());
-					}
-				}
+		if (first != null) {
+			buf.append(first.toString());
+		}
 
-				return buf.toString();
+		while (iterator.hasNext()) {
+			buf.append(',');
+			Number obj = (Number) iterator.next();
+			if (obj != null) {
+				buf.append(obj.toString());
+			}
+		}
+
+		return buf.toString();
 
 	}
-	
-	
+
 	private static String encodeStringArray(String first, Iterator<?> iterator) {
 
 		// two or more elements
@@ -187,6 +195,20 @@ public class MongoJsonEncoder {
 
 		return buf.toString();
 
+	}
+
+	/**
+	 * Convert an String ID to a id element for Mongo.
+	 * 
+	 * @param key
+	 *            is the key of the json element
+	 * @param date
+	 *            is the date string to be convert
+	 * @return a ISODate encoded string
+	 */
+	public static String encodeId(final String key, final String id) {
+
+		return String.format("\"%s\" : ObjectId(\"%s\")", key, id);
 	}
 
 	/**
