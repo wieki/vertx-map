@@ -71,6 +71,8 @@ public class AsyncMongoPersistor extends Verticle {
 	public static final String EVENT_DB_UPDATE = "mongo.async.update";
 	public static final String EVENT_DB_DELETE = "mongo.async.delete";
 	public static final String EVENT_DB_GET_FILE = "mongo.async.get_file";
+	
+	public static final String EVENT_DB_AGGREGATE = "mongo.async.aggregate";
 
 	public static final String QUERY_LIMIT = "limit";
 	public static final String QUERY_SORT = "sort";
@@ -101,6 +103,10 @@ public class AsyncMongoPersistor extends Verticle {
 
 		mongodb = connectToDatabase(modConfig);
 		gridFs = initGridFs(modConfig);
+		
+		Aggregation ag = new Aggregation(mongodb);
+		vertx.eventBus().registerHandler(EVENT_DB_AGGREGATE,
+				(Message<JsonObject> q) -> ag.aggregate(q));
 
 		vertx.eventBus().registerHandler(EVENT_DB_FIND,
 				(Message<JsonObject> q) -> find(q));
@@ -117,6 +123,8 @@ public class AsyncMongoPersistor extends Verticle {
 		log.info("Starting Mongo Async Persistor");
 	}
 
+
+	
 	/**
 	 * Retrieve a file on basis of its ObjectId. The contents of the file is
 	 * written back in a buffer to the even source
@@ -378,10 +386,7 @@ public class AsyncMongoPersistor extends Verticle {
 			MongoIterator<Document> docs) {
 		JsonArray jsonDocs = new JsonArray();
 
-		for (Document doc : docs) {
-			JsonObject obj = MongoUtil.convertBsonToJson(doc);
-			jsonDocs.add(obj);
-		}
+		docs.forEach(doc -> jsonDocs.add(MongoUtil.convertBsonToJson(doc))); 
 
 		message.reply(jsonDocs);
 	}

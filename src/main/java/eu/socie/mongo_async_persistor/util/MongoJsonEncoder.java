@@ -22,7 +22,6 @@ import org.vertx.java.core.json.JsonObject;
 public class MongoJsonEncoder {
 
 	private static final String ID = "_id";
-	private final static String ISO_DATE = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.\\d{3}(-|\\+)\\d{4}";
 	private final static String MONGO_ID = "^([a-z0-9]){24}$";
 
 	private MongoJsonEncoder() {
@@ -57,7 +56,7 @@ public class MongoJsonEncoder {
 				// then check if assumption is true
 				if (isId(key, (String) val)) {
 					result.append(encodeId(key, (String) val));
-				} else if (((String) val).matches(ISO_DATE)) {
+				} else if (((String) val).matches(MongoDateUtil.ISO_DATE)) {
 					result.append(encodeDate(key, (String) val));
 				} else {
 					result.append(encodeString(key, (String) val));
