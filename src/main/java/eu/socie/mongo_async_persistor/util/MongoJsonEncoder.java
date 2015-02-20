@@ -232,7 +232,7 @@ public class MongoJsonEncoder {
 	 */
 	public static String encodeDate(final String key, final String date) {
 
-		return String.format("\"%s\" : Date(\"%s\")", key, date);
+		return String.format("\"%s\" : ISODate(\"%s\")", key, date);
 
 	}
 

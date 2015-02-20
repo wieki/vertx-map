@@ -24,6 +24,7 @@ import org.vertx.java.core.json.JsonObject;
 import com.allanbank.mongodb.bson.Document;
 import com.allanbank.mongodb.bson.Element;
 import com.allanbank.mongodb.bson.element.ArrayElement;
+import com.allanbank.mongodb.bson.element.BooleanElement;
 import com.allanbank.mongodb.bson.element.DocumentElement;
 import com.allanbank.mongodb.bson.element.DoubleElement;
 import com.allanbank.mongodb.bson.element.IntegerElement;
@@ -86,7 +87,7 @@ public class MongoUtil {
 		JsonObject obj = new JsonObject();
 
 		for (Element element : elements) {
-
+			
 			String name = element.getName();
 		
 			if (element instanceof StringElement) {
@@ -95,6 +96,9 @@ public class MongoUtil {
 			if (element instanceof ObjectIdElement) {
 				String id = ((ObjectIdElement) element).getId().toHexString();
 				obj.putString(name, id);
+			}
+			if (element instanceof BooleanElement) {
+				obj.putBoolean(name, ((BooleanElement) element).getValue());
 			}
 			if (element instanceof LongElement) {
 				obj.putNumber(name, ((LongElement) element).getValue());
