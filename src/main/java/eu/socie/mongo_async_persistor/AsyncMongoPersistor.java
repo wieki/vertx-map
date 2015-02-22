@@ -49,9 +49,11 @@ import eu.socie.mongo_async_persistor.util.MongoUtil;
 
 /**
  * This verticle handles requests to store data in a MongoDB instance. It uses
- * the Async Mongo driver to fit right into vertx. 
+ * the Async Mongo driver to fit right into vertx.
  * 
- * @see <a href="http://www.allanbank.com/mongodb-async-driver/index.html">Allanbank Async Mongo Driver</a>
+ * @see <a
+ *      href="http://www.allanbank.com/mongodb-async-driver/index.html">Allanbank
+ *      Async Mongo Driver</a>
  */
 public class AsyncMongoPersistor extends Verticle {
 
@@ -71,7 +73,8 @@ public class AsyncMongoPersistor extends Verticle {
 	public static final String EVENT_DB_UPDATE = "mongo.async.update";
 	public static final String EVENT_DB_DELETE = "mongo.async.delete";
 	public static final String EVENT_DB_GET_FILE = "mongo.async.get_file";
-	
+	public static final String EVENT_DB_STORE_FILE = "mongo.async.store_file";
+
 	public static final String EVENT_DB_AGGREGATE = "mongo.async.aggregate";
 
 	public static final String QUERY_LIMIT = "limit";
@@ -84,6 +87,7 @@ public class AsyncMongoPersistor extends Verticle {
 	public static final int ERROR_WRONG_TYPE_CODE = 1004;
 	public static final int ERROR_NO_FILE_FOR_ID_CODE = 1005;
 	public static final int ERROR_NO_ID_QUERY_CODE = 1006;
+	public static final int ERROR_STORING_FILE = 1007;
 
 	// TODO consider localization
 	public static final String ERROR_COLLECTION_NAME_MSG = "No collection name in query";
@@ -103,7 +107,7 @@ public class AsyncMongoPersistor extends Verticle {
 
 		mongodb = connectToDatabase(modConfig);
 		gridFs = initGridFs(modConfig);
-		
+
 		Aggregation ag = new Aggregation(mongodb);
 		vertx.eventBus().registerHandler(EVENT_DB_AGGREGATE,
 				(Message<JsonObject> q) -> ag.aggregate(q));
@@ -120,11 +124,12 @@ public class AsyncMongoPersistor extends Verticle {
 		vertx.eventBus().registerHandler(EVENT_DB_GET_FILE,
 				(Message<JsonObject> q) -> getFile(q));
 
+		vertx.eventBus().registerHandler(EVENT_DB_STORE_FILE,
+				(Message<Buffer> q) -> storeFile(q));
+
 		log.info("Starting Mongo Async Persistor");
 	}
 
-
-	
 	/**
 	 * Retrieve a file on basis of its ObjectId. The contents of the file is
 	 * written back in a buffer to the even source
@@ -143,8 +148,7 @@ public class AsyncMongoPersistor extends Verticle {
 						ERROR_NO_ID_QUERY_MSG);
 				return;
 			} else {
-				JsonObject idObj = fileQuery.getObject("_id");
-				id = idObj.getString("$oid");
+				 id = fileQuery.getString("_id");
 			}
 
 			Buffer buffer = new Buffer();
@@ -154,9 +158,32 @@ public class AsyncMongoPersistor extends Verticle {
 			fileMsg.reply(buffer);
 
 		} catch (IllegalArgumentException | IOException e) {
+			// FIXME remove
+			System.out.println(e.getMessage());
+			
 			castError(fileMsg, ERROR_NO_FILE_FOR_ID_CODE,
 					String.format(ERROR_NO_FILE_FOR_ID_MSG, id));
+
 		}
+	}
+
+	public void storeFile(Message<Buffer> fileMsg) {
+		Buffer buffer = fileMsg.body();
+
+		if (buffer != null) {
+
+			try {
+				ObjectId id = gridFs.write(buffer);
+				
+				 fileMsg.reply(id.toHexString());
+			} catch (IOException e) {
+				castError(fileMsg, ERROR_NO_FILE_FOR_ID_CODE,
+						String.format(e.getMessage()));
+			}
+		}
+		
+		
+		// FIXME error handling
 	}
 
 	/**
@@ -386,7 +413,7 @@ public class AsyncMongoPersistor extends Verticle {
 			MongoIterator<Document> docs) {
 		JsonArray jsonDocs = new JsonArray();
 
-		docs.forEach(doc -> jsonDocs.add(MongoUtil.convertBsonToJson(doc))); 
+		docs.forEach(doc -> jsonDocs.add(MongoUtil.convertBsonToJson(doc)));
 
 		message.reply(jsonDocs);
 	}

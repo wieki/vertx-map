@@ -8,6 +8,14 @@ import static com.allanbank.mongodb.builder.Sort.asc;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.streams.WriteStream;
@@ -24,6 +32,7 @@ import com.allanbank.mongodb.bson.element.BinaryElement;
 import com.allanbank.mongodb.bson.element.ObjectId;
 import com.allanbank.mongodb.builder.Find;
 import com.allanbank.mongodb.gridfs.GridFs;
+import com.allanbank.mongodb.util.IOUtils;
 
 /**
  * Copyright 2015 Socie
@@ -47,6 +56,16 @@ public class AsyncGridFs extends GridFs {
 	private final MongoCollection myChunksCollection;
 	private final MongoCollection myFilesCollection;
 
+	private static final int FILEPATH_HEADER_LENGTH = 128;
+	private static final int CONTENT_TYPE_HEADER_LENGTH = 50;
+	private static int HEADER_LENGTH;
+	
+	public static final String MIME_TYPE_FIELD = "contentType";
+	
+	static {
+		HEADER_LENGTH = FILEPATH_HEADER_LENGTH + CONTENT_TYPE_HEADER_LENGTH;		
+	}
+	
 	public AsyncGridFs(MongoDatabase database) {
 		this(database, DEFAULT_ROOT);
 	}
@@ -58,6 +77,9 @@ public class AsyncGridFs extends GridFs {
 		myFilesCollection = database.getCollection(rootName + FILES_SUFFIX);
 	}
 
+	/*
+	 * Based on the driver code
+	 */
 	protected void doRead(Document fileDoc, Object sink) throws IOException {
 		final Element id = fileDoc.get(ID_FIELD);
 
@@ -117,17 +139,16 @@ public class AsyncGridFs extends GridFs {
 							+ "'.");
 				} else {
 					final byte[] buffer = bytes.getValue();
-					
+
 					if (sink instanceof Buffer) {
 						writeToBuffer((Buffer) sink, buffer);
-					}
-					else if (sink instanceof WriteStream<?>) {
+					} else if (sink instanceof WriteStream<?>) {
 						writeToStream((WriteStream<?>) sink, buffer);
+					} else {
+						throw new IOException(
+								"File contents can only be written to either a Buffer or Writestream");
 					}
-					else {
-						throw new IOException("File contents can only be written to either a Buffer or Writestream");
-					}
-					
+
 					expectedChunk += 1;
 					totalSize += buffer.length;
 				}
@@ -149,18 +170,24 @@ public class AsyncGridFs extends GridFs {
 	private void writeToBuffer(Buffer sink, byte[] buffer) {
 		sink.appendBytes(buffer);
 	}
-	
+
 	private void writeToStream(WriteStream<?> sink, byte[] buffer) {
 		sink.write(new Buffer(buffer));
 	}
 
 	/**
 	 * Read a file with ObjectId id and write the result to a write stream.
-	 * @param id is the ObjectId of the file to retrieve
-	 * @param stream is the destination stream where to write to. Could be used to pump data
-	 * @throws IOException will be thrown if no file was found using the id
+	 * 
+	 * @param id
+	 *            is the ObjectId of the file to retrieve
+	 * @param stream
+	 *            is the destination stream where to write to. Could be used to
+	 *            pump data
+	 * @throws IOException
+	 *             will be thrown if no file was found using the id
 	 */
-	public void read(final ObjectId id, final WriteStream<?> stream) throws IOException {
+	public void read(final ObjectId id, final WriteStream<?> stream)
+			throws IOException {
 		final Document fileDoc = myFilesCollection.findOne(where(ID_FIELD)
 				.equals(id));
 		if (fileDoc == null) {
@@ -172,9 +199,13 @@ public class AsyncGridFs extends GridFs {
 
 	/**
 	 * Read a file with ObjectId id and write the result to a buffer.
-	 * @param id is the ObjectId of the file to retrieve 
-	 * @param buffer is the destination of the file contents
-	 * @throws IOException is thrown if no file can be read
+	 * 
+	 * @param id
+	 *            is the ObjectId of the file to retrieve
+	 * @param buffer
+	 *            is the destination of the file contents
+	 * @throws IOException
+	 *             is thrown if no file can be read
 	 */
 	public void read(final ObjectId id, final Buffer buffer) throws IOException {
 		final Document fileDoc = myFilesCollection.findOne(where(ID_FIELD)
@@ -184,6 +215,122 @@ public class AsyncGridFs extends GridFs {
 		}
 
 		doRead(fileDoc, buffer);
+	}
+
+	public int readFromBuffer(byte[] target, Buffer buffer, int start) {
+		int bufferSize = buffer.length();
+		int size = target.length;
+
+		if (start > bufferSize) {
+			return 0;
+		} else {
+
+			int readEnd = start + size < bufferSize ? start + size : bufferSize;
+
+			if (readEnd <= bufferSize) {
+				byte[] b = buffer.getBytes(start, readEnd);
+
+				for (int i = 0; i < b.length; i++) {
+					target[i] = b[i];
+				}
+
+				return (readEnd - start);
+			}
+		}
+
+		return 0;
+	}
+
+	/**
+	 * The method will write a Vertx buffer to the Mongo GridFS system. The
+	 * first 128 bits of the buffer are reserved for the filename of the
+	 * transferred file
+	 * 
+	 * @param fileBuffer
+	 *            contains the data of the file to be stored
+	 * @return the ObjectId of the stored file
+	 * @throws IOException
+	 *             will be thrown when the file store operation cannot succeed
+	 *             properly. Check the return message for more details.
+	 */
+	public ObjectId write(final Buffer fileBuffer) throws IOException {
+		final ObjectId id = new ObjectId();
+
+		boolean failed = false;
+		try {
+			final String filename = fileBuffer.getString(0, FILEPATH_HEADER_LENGTH).trim();
+			final String contentType = fileBuffer.getString(FILEPATH_HEADER_LENGTH, FILEPATH_HEADER_LENGTH+CONTENT_TYPE_HEADER_LENGTH).trim();
+			final int fileLength = fileBuffer.length() - HEADER_LENGTH;
+
+			final byte[] buffer = new byte[DEFAULT_CHUNK_SIZE];
+			final MessageDigest md5Digest = MessageDigest.getInstance("MD5");
+
+			final List<Future<Integer>> results = new ArrayList<Future<Integer>>();
+			final DocumentBuilder doc = BuilderFactory.start();
+			int n = 0;
+			int start = HEADER_LENGTH;
+
+			int read = readFromBuffer(buffer, fileBuffer, start);
+
+			while (read > 0) {
+
+				final ObjectId chunkId = new ObjectId();
+
+				doc.reset();
+				doc.addObjectId(ID_FIELD, chunkId);
+				doc.addObjectId(FILES_ID_FIELD, id);
+				doc.addInteger(CHUNK_NUMBER_FIELD, n);
+
+				final byte[] data = (read == buffer.length) ? buffer : Arrays
+						.copyOf(buffer, read);
+				md5Digest.update(data);
+				doc.addBinary(DATA_FIELD, data);
+
+				results.add(myChunksCollection.insertAsync(doc.build()));
+
+				n++;
+				
+				read = readFromBuffer(buffer, fileBuffer, (start + n
+						* buffer.length));// readFully(source,
+				
+			}
+
+			doc.reset();
+			doc.addObjectId(ID_FIELD, id);
+			doc.addString(FILENAME_FIELD, filename);
+			doc.addString(MIME_TYPE_FIELD, contentType);
+			doc.addTimestamp(UPLOAD_DATE_FIELD, System.currentTimeMillis());
+			doc.addInteger(CHUNK_SIZE_FIELD, buffer.length);
+			doc.addLong(LENGTH_FIELD, fileLength);
+			doc.addString(MD5_FIELD, IOUtils.toHex(md5Digest.digest()));
+
+			results.add(myFilesCollection.insertAsync(doc.build()));
+
+			// Make sure everything made it to the server.
+			for (final Future<Integer> f : results) {
+				f.get();
+			}
+		} catch (final NoSuchAlgorithmException e) {
+			failed = true;
+			throw new IOException(e);
+		} catch (final InterruptedException e) {
+			failed = true;
+			final InterruptedIOException error = new InterruptedIOException(
+					e.getMessage());
+			error.initCause(e);
+			throw error;
+		} catch (final ExecutionException e) {
+			failed = true;
+			throw new IOException(e.getCause());
+		} finally {
+			if (failed) {
+				myFilesCollection.delete(where(ID_FIELD).equals(id));
+				myChunksCollection.delete(where(FILES_ID_FIELD).equals(id));
+			}
+		}
+
+		return id;
+
 	}
 
 }

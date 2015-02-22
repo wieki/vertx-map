@@ -183,13 +183,5 @@ public class MongoUtil {
 		return obj;
 	}
 
-	public static JsonObject createIdReference(String id) {
-		JsonObject obj = new JsonObject();
-
-		obj.putString("$oid", id);
-
-		return obj;
-
-	}
 
 }

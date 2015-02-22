@@ -212,7 +212,7 @@ public class MongoJsonEncoder {
 	 *            is the key of the json element
 	 * @param date
 	 *            is the date string to be convert
-	 * @return a ISODate encoded string
+	 * @return a ObjectId encoded string
 	 */
 	public static String encodeId(final String key, final String id) {
 
