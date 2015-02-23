@@ -46,7 +46,8 @@ public class MongoJsonEncoder {
 	public static String encode(Map<String, Object> map) {
 
 		StringBuilder result = new StringBuilder("{");
-
+		ArrayList<String> stringParts = new ArrayList<String>();
+		
 		for (Entry<String, Object> entry : map.entrySet()) {
 			Object val = entry.getValue();
 			String key = entry.getKey();
@@ -55,40 +56,44 @@ public class MongoJsonEncoder {
 				// Assume that fields that end on _id are ObjectId references,
 				// then check if assumption is true
 				if (isId(key, (String) val)) {
-					result.append(encodeId(key, (String) val));
+					stringParts.add(encodeId(key, (String) val));
 				} else if (((String) val).matches(MongoDateUtil.ISO_DATE)) {
-					result.append(encodeDate(key, (String) val));
+					stringParts.add(encodeDate(key, (String) val));
 				} else {
-					result.append(encodeString(key, (String) val));
+					stringParts.add(encodeString(key, (String) val));
 				}
 			}
 			
 			if (val instanceof Boolean) {
-				result.append(encodeBoolean(key, (Boolean) val));
+				stringParts.add(encodeBoolean(key, (Boolean) val));
 			}
 			
 			if (val instanceof Number) {
-				result.append(encodeNumber(key, (Number) val));
+				stringParts.add(encodeNumber(key, (Number) val));
 			}
 
 			if (val instanceof Map<?, ?>) {
-				result.append(String.format("%s : %s", key,
+				stringParts.add(String.format("%s : %s", key,
 						encode((Map<String, Object>) val)));
 			}
 
 			if (val instanceof ArrayList<?>) {
+				if (!((ArrayList<?>) val).isEmpty()){
+				
 				String encodeStr = encodeArray((ArrayList<?>) val);
 
-				result.append(String.format("%s : [ %s ]", key, encodeStr));
+				stringParts.add(String.format("%s : [ %s ]", key, encodeStr));
+				}
 			}
 
 			// TODO DBref types
 
 			// TODO other types
-
-			result.append(',');
-
 		}
+		
+		String resultStr = String.join(",", stringParts); 
+		
+		result.append(resultStr);
 
 		if (result.charAt(result.length() - 1) == ',') {
 			result.deleteCharAt(result.length() - 1);
