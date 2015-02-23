@@ -34,6 +34,8 @@ import com.allanbank.mongodb.builder.Find;
 import com.allanbank.mongodb.gridfs.GridFs;
 import com.allanbank.mongodb.util.IOUtils;
 
+import eu.socie.mongo_async_persistor.util.MongoFileUtil;
+
 /**
  * Copyright 2015 Socie
  *
@@ -58,14 +60,14 @@ public class AsyncGridFs extends GridFs {
 
 	private static final int FILEPATH_HEADER_LENGTH = 128;
 	private static final int CONTENT_TYPE_HEADER_LENGTH = 50;
-	private static int HEADER_LENGTH;
-	
-	public static final String MIME_TYPE_FIELD = "contentType";
-	
+	public  static int HEADER_LENGTH;
+
+	public static final String CONTENT_TYPE_FIELD = "contentType";
+
 	static {
-		HEADER_LENGTH = FILEPATH_HEADER_LENGTH + CONTENT_TYPE_HEADER_LENGTH;		
+		HEADER_LENGTH = FILEPATH_HEADER_LENGTH + CONTENT_TYPE_HEADER_LENGTH;
 	}
-	
+
 	public AsyncGridFs(MongoDatabase database) {
 		this(database, DEFAULT_ROOT);
 	}
@@ -77,11 +79,23 @@ public class AsyncGridFs extends GridFs {
 		myFilesCollection = database.getCollection(rootName + FILES_SUFFIX);
 	}
 
+	private void writeHeader(String fileName, String contentType, Object sink) {
+		Buffer headerBuffer = MongoFileUtil.createHeader(fileName, contentType);
+		
+		if (sink instanceof Buffer) {
+			writeToBuffer((Buffer) sink, headerBuffer.getBytes());
+		} else {
+			writeToStream((WriteStream<?>) sink, headerBuffer.getBytes());
+		}
+	}
+	
 	/*
 	 * Based on the driver code
 	 */
 	protected void doRead(Document fileDoc, Object sink) throws IOException {
 		final Element id = fileDoc.get(ID_FIELD);
+		final String fileName = fileDoc.get(FILENAME_FIELD).getValueAsString();
+		final String contentType = fileDoc.get(CONTENT_TYPE_FIELD).getValueAsString();
 
 		long length = -1;
 		final NumericElement lengthElement = fileDoc.get(NumericElement.class,
@@ -118,6 +132,8 @@ public class AsyncGridFs extends GridFs {
 		final MongoIterator<Document> iter = myChunksCollection
 				.find(findBuilder.build());
 		try {
+			writeHeader(fileName, contentType, sink);
+			
 			for (final Document chunk : iter) {
 
 				final NumericElement n = chunk.get(NumericElement.class,
@@ -243,8 +259,8 @@ public class AsyncGridFs extends GridFs {
 
 	/**
 	 * The method will write a Vertx buffer to the Mongo GridFS system. The
-	 * first 128 bits of the buffer are reserved for the filename of the
-	 * transferred file
+	 * first 178 bits of the buffer are reserved for the filename (128 bytes)
+	 * and content type (50 bytes) of the transferred file
 	 * 
 	 * @param fileBuffer
 	 *            contains the data of the file to be stored
@@ -258,8 +274,11 @@ public class AsyncGridFs extends GridFs {
 
 		boolean failed = false;
 		try {
-			final String filename = fileBuffer.getString(0, FILEPATH_HEADER_LENGTH).trim();
-			final String contentType = fileBuffer.getString(FILEPATH_HEADER_LENGTH, FILEPATH_HEADER_LENGTH+CONTENT_TYPE_HEADER_LENGTH).trim();
+			final String filename = fileBuffer.getString(0,
+					FILEPATH_HEADER_LENGTH).trim();
+			final String contentType = fileBuffer.getString(
+					FILEPATH_HEADER_LENGTH,
+					FILEPATH_HEADER_LENGTH + CONTENT_TYPE_HEADER_LENGTH).trim();
 			final int fileLength = fileBuffer.length() - HEADER_LENGTH;
 
 			final byte[] buffer = new byte[DEFAULT_CHUNK_SIZE];
@@ -289,16 +308,16 @@ public class AsyncGridFs extends GridFs {
 				results.add(myChunksCollection.insertAsync(doc.build()));
 
 				n++;
-				
+
 				read = readFromBuffer(buffer, fileBuffer, (start + n
 						* buffer.length));// readFully(source,
-				
+
 			}
 
 			doc.reset();
 			doc.addObjectId(ID_FIELD, id);
 			doc.addString(FILENAME_FIELD, filename);
-			doc.addString(MIME_TYPE_FIELD, contentType);
+			doc.addString(CONTENT_TYPE_FIELD, contentType);
 			doc.addTimestamp(UPLOAD_DATE_FIELD, System.currentTimeMillis());
 			doc.addInteger(CHUNK_SIZE_FIELD, buffer.length);
 			doc.addLong(LENGTH_FIELD, fileLength);
