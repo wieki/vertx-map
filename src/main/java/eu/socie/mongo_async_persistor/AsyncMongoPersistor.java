@@ -228,12 +228,9 @@ public class AsyncMongoPersistor extends Verticle {
 			if (error != null) {
 				castError(updateMessage, -1, error.getMessage());
 			} else {
-				/* ObjectIdElement id = (ObjectIdElement) doc.get("_id");
-				String idStr = id.getId().toHexString(); */
 				JsonObject obj = new JsonObject();
 
-				obj.putNumber("updated_documents", results);
-				//obj.putString("result_id", idStr);
+				obj.putNumber("query_result", results);
 				
 				updateMessage.reply(obj);
 			}
