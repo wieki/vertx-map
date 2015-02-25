@@ -38,6 +38,7 @@ import com.allanbank.mongodb.MongoFactory;
 import com.allanbank.mongodb.MongoIterator;
 import com.allanbank.mongodb.bson.Document;
 import com.allanbank.mongodb.bson.DocumentAssignable;
+import com.allanbank.mongodb.bson.builder.impl.DocumentBuilderImpl;
 import com.allanbank.mongodb.bson.element.ObjectId;
 import com.allanbank.mongodb.bson.element.ObjectIdElement;
 import com.allanbank.mongodb.bson.json.Json;
@@ -121,6 +122,9 @@ public class AsyncMongoPersistor extends Verticle {
 
 		vertx.eventBus().registerHandler(EVENT_DB_DELETE,
 				(Message<JsonObject> q) -> delete(q));
+		
+		vertx.eventBus().registerHandler(EVENT_DB_UPDATE,
+				(Message<JsonObject> q) -> update(q));
 
 		vertx.eventBus().registerHandler(EVENT_DB_GET_FILE,
 				(Message<JsonObject> q) -> getFile(q));
@@ -217,6 +221,56 @@ public class AsyncMongoPersistor extends Verticle {
 		// FIXME error handling
 	}
 
+	public void update(Message<JsonObject> updateMessage) {
+		if (updateMessage == null)
+			castError(updateMessage, ERROR_QUERY_DOCUMENT_CODE,
+					ERROR_QUERY_DOCUMENT_MSG);
+		
+		JsonObject updateQuery = updateMessage.body();
+
+		String collectionName = updateQuery.getString("collection");
+		JsonObject queryDoc = updateQuery.getObject("query");
+		JsonObject updateDoc = updateQuery.getObject("document");
+		
+		if (collectionName == null)
+			castError(updateMessage, ERROR_COLLECTION_NAME_CODE,
+					ERROR_COLLECTION_NAME_MSG);
+
+		if (updateDoc == null)
+			castError(updateMessage, ERROR_QUERY_DOCUMENT_CODE,
+					ERROR_QUERY_DOCUMENT_MSG);
+		
+		if (queryDoc == null)
+			castError(updateMessage, ERROR_QUERY_DOCUMENT_CODE,
+					ERROR_QUERY_DOCUMENT_MSG);
+		
+		String queryStr = MongoJsonEncoder.encode(queryDoc);
+		Document query = Json.parse(queryStr);
+		
+		String updateStr = MongoJsonEncoder.encode(updateDoc);
+		Document doc = Json.parse(updateStr);
+		
+		Document setDoc = new DocumentBuilderImpl().addDocument("$set", doc).build();
+
+		MongoCollection collection = mongodb.getCollection(collectionName);
+
+		
+		collection.updateAsync((error, results) -> {
+			if (error != null) {
+				castError(updateMessage, -1, error.getMessage());
+			} else {
+				JsonObject obj = new JsonObject();
+
+				obj.putNumber("query_result", results);
+				
+				updateMessage.reply(obj);
+			}
+
+		}, query, setDoc);
+				
+	}
+	
+	
 	/**
 	 * Perform an asynchronous save on the database of a new document, if the
 	 * document contains an _id the document is updated The query document
@@ -256,7 +310,7 @@ public class AsyncMongoPersistor extends Verticle {
 		Document doc = Json.parse(createStr);
 
 		MongoCollection collection = mongodb.getCollection(collectionName);
-
+		
 		collection.saveAsync((error, results) -> {
 			if (error != null) {
 				castError(saveMessage, -1, error.getMessage());
@@ -274,9 +328,6 @@ public class AsyncMongoPersistor extends Verticle {
 		}, doc);
 	}
 
-	public void update(Message<JsonObject> updateMessage) {
-		// FIXME to be implemented
-	}
 
 	/**
 	 * Perform an asynchronous delete on the database of an existing document,
