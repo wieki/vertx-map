@@ -74,6 +74,7 @@ public class AsyncMongoPersistor extends Verticle {
 	public static final String EVENT_DB_DELETE = "mongo.async.delete";
 	public static final String EVENT_DB_GET_FILE = "mongo.async.get_file";
 	public static final String EVENT_DB_STORE_FILE = "mongo.async.store_file";
+	public static final String EVENT_DB_CHECK_FILE = "mongo.async.check_file";
 
 	public static final String EVENT_DB_AGGREGATE = "mongo.async.aggregate";
 
@@ -123,11 +124,41 @@ public class AsyncMongoPersistor extends Verticle {
 
 		vertx.eventBus().registerHandler(EVENT_DB_GET_FILE,
 				(Message<JsonObject> q) -> getFile(q));
+		
+		vertx.eventBus().registerHandler(EVENT_DB_CHECK_FILE,
+				(Message<JsonObject> q) -> checkFile(q));
 
 		vertx.eventBus().registerHandler(EVENT_DB_STORE_FILE,
 				(Message<Buffer> q) -> storeFile(q));
 
 		log.info("Starting Mongo Async Persistor");
+	}
+	
+	/**
+	 * Checks if a file exists on basis of its ObjectId. 
+	 * 
+	 * @param fileMsg
+	 *            is the query message that contains the id of the file to
+	 *            retrieve.
+	 */
+	private void checkFile(Message<JsonObject> fileMsg) {
+		String id = "";
+
+		JsonObject fileQuery = fileMsg.body();
+		if (!fileQuery.containsField("_id")) {
+			castError(fileMsg, ERROR_NO_ID_QUERY_CODE,
+					ERROR_NO_ID_QUERY_MSG);
+			return;
+		} else {
+			 id = fileQuery.getString("_id");
+		}
+
+		JsonObject found = new JsonObject();
+
+		if (gridFs.find(new ObjectId(id))) {
+			found.putString("pdf_id", id);
+		}
+		fileMsg.reply(found);
 	}
 
 	/**

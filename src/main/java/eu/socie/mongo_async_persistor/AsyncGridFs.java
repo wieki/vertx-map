@@ -125,7 +125,7 @@ public class AsyncGridFs extends GridFs {
 		findBuilder.setSort(asc(CHUNK_NUMBER_FIELD));
 
 		// Small batch size since the docs are big and we can do parallel I/O.
-		findBuilder.setBatchSize(2);
+		findBuilder.setBatchSize(10);
 
 		long expectedChunk = 0;
 		long totalSize = 0;
@@ -211,6 +211,22 @@ public class AsyncGridFs extends GridFs {
 		}
 
 		doRead(fileDoc, stream);
+	}
+	
+	/**
+	 * Find a file with ObjectId id
+	 * 
+	 * @param id
+	 *            is the ObjectId of the file to retrieve
+	 * @param found
+	 *            indicates if the file is found
+	 * @throws IOException
+	 *             is thrown if no file can be found
+	 */
+	public boolean find(final ObjectId id){
+		final Document fileDoc = myFilesCollection.findOne(where(ID_FIELD).equals(id));
+		if (fileDoc != null) return true;
+		return false;
 	}
 
 	/**
