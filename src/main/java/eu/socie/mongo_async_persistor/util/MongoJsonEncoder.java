@@ -57,7 +57,7 @@ public class MongoJsonEncoder {
 				// then check if assumption is true
 				if (isId(key, (String) val)) {
 					stringParts.add(encodeId(key, (String) val));
-				} else if (((String) val).matches(MongoDateUtil.ISO_DATE)) {
+				} else if (((String) val).matches(MongoDateUtil.ISO_DATE_REGEX)) {
 					stringParts.add(encodeDate(key, (String) val));
 				} else {
 					stringParts.add(encodeString(key, (String) val));
