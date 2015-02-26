@@ -204,6 +204,7 @@ public class AsyncGridFs extends GridFs {
 	 */
 	public void read(final ObjectId id, final WriteStream<?> stream)
 			throws IOException {
+		// TODO should be FindOneAsync??
 		final Document fileDoc = myFilesCollection.findOne(where(ID_FIELD)
 				.equals(id));
 		if (fileDoc == null) {
@@ -224,6 +225,7 @@ public class AsyncGridFs extends GridFs {
 	 *             is thrown if no file can be read
 	 */
 	public void read(final ObjectId id, final Buffer buffer) throws IOException {
+		// TODO should be FindOneAsync??
 		final Document fileDoc = myFilesCollection.findOne(where(ID_FIELD)
 				.equals(id));
 		if (fileDoc == null) {
