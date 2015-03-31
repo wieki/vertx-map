@@ -248,7 +248,7 @@ public class MongoJsonEncoder {
 			return String.format("\"%s\" : NumberLong(\"%s\")", key, result);
 		}
 
-		return String.format("\"%s\" : \"%s\"", key, result);
+		return String.format("\"%s\" : %s", key, result);
 
 	}
 
