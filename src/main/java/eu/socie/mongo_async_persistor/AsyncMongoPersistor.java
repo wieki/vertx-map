@@ -415,9 +415,10 @@ public class AsyncMongoPersistor extends Verticle {
 
 		String findStr = MongoJsonEncoder.encode(find);
 
-		Document doc = Json.parse(findStr);
+ 		Document doc = Json.parse(findStr);
 
 		Find query = createFindQuery(findQuery, doc);
+		
 
 		collection.findAsync((error, results) -> {
 			if (error != null) {

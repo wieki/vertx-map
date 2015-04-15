@@ -59,6 +59,9 @@ public class MongoJsonEncoder {
 					stringParts.add(encodeId(key, (String) val));
 				} else if (((String) val).matches(MongoDateUtil.ISO_DATE_REGEX)) {
 					stringParts.add(encodeDate(key, (String) val));
+				} else if (((String) val).matches(MongoDateUtil.BROKEN_ISO_DATE_REGEX)) {
+					String value = ((String) val).replace(' ','+');
+					stringParts.add(encodeDate(key, (String) value));
 				} else {
 					stringParts.add(encodeString(key, (String) val));
 				}

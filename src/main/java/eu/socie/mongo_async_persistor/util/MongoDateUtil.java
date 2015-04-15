@@ -5,6 +5,9 @@ import java.time.format.DateTimeFormatter;
 
 public class MongoDateUtil {
 
+	// Time zones may break through URL encoding
+	public final static String BROKEN_ISO_DATE_REGEX = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.\\d{3}( )\\d{4}";
+		
 	public final static String ISO_DATE_REGEX = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.\\d{3}(-|\\+)\\d{4}";
 	public static final String ISO_DATE_FORMAT ="uuuu-MM-dd'T'HH:mm:ss.SSSXX";
 	
