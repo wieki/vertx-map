@@ -358,7 +358,7 @@ public class AsyncMongoPersistor extends Verticle {
 		// TODO what if collection doesn't exist?
 		MongoCollection collection = mongodb.getCollection(collectionName);
 
-		JsonObject deleteDoc = deleteQuery.getObject("document");
+		JsonObject deleteDoc = deleteQuery.getObject("query");
 
 		if (deleteDoc == null) {
 			castError(deleteMessage, ERROR_QUERY_DOCUMENT_CODE,
