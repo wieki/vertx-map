@@ -76,7 +76,7 @@ public class MongoJsonEncoder {
 			}
 
 			if (val instanceof Map<?, ?>) {
-				stringParts.add(String.format("%s : %s", key,
+				stringParts.add(String.format("\"%s\" : %s", key,
 						encode((Map<String, Object>) val)));
 			}
 
