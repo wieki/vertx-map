@@ -194,14 +194,14 @@ public class MongoJsonEncoder {
 		StringBuffer buf = new StringBuffer(256); // Java default is 16,
 													// probably too small
 		if (first != null) {
-			buf.append(first);
+			buf.append(String.format("\"%s\"",first));
 		}
 
 		while (iterator.hasNext()) {
 			buf.append(',');
 			Object obj = iterator.next();
 			if (obj != null) {
-				buf.append(obj);
+				buf.append(String.format("\"%s\"",obj));
 			}
 		}
 
