@@ -16,3 +16,9 @@ to the database, so no worker verticle has to be used. All operations to the dat
 ## Usage
 
 * The module can be configured by providing an configuration object on start-up of the module
+* 
+
+## Download
+
+The latest build is available from BinTray:
+[ ![Download](https://api.bintray.com/packages/socie/vertx-mods/eu.socie.mongo-async-persistor/images/download.svg) ](https://bintray.com/socie/vertx-mods/eu.socie.mongo-async-persistor/_latestVersion)
