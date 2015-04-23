@@ -119,7 +119,7 @@ public class MongoJsonEncoder {
 		if (first != null && first instanceof String) {
 
 			if (!iterator.hasNext()) {
-				return first == null ? "" : first.toString();
+				return first == null ? "" : String.format("\"%s\"",first.toString());
 			}
 
 			return encodeStringArray(first.toString(), iterator);
