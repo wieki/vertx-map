@@ -5,7 +5,7 @@
 
 	<artifactId>mongo-async-persistor</artifactId>
 	<packaging>jar</packaging>
-	<version>0.3-SNAPSHOT</version>
+	<version>0.3</version>
 	<name>mongo-async-persistor</name>
 	<url>https://github.com/wieki/vertx-map</url>
 
@@ -316,4 +316,10 @@
 	<issueManagement>
 		<url>https://github.com/wieki/vertx-map/issues</url>
 	</issueManagement>
+	<distributionManagement>
+		<repository>
+			<id>bintray</id>
+			<url>https://api.bintray.com/maven/socie/socie_oss/eu.socie.mongo-async-persistor</url>
+		</repository>
+	</distributionManagement>
 </project>
