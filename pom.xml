@@ -319,7 +319,7 @@
 	<distributionManagement>
 		<repository>
 			<id>bintray</id>
-			<url>https://api.bintray.com/maven/socie/socie_oss/eu.socie.mongo-async-persistor</url>
+			<url>https://api.bintray.com/maven/socie/vert-mods/eu.socie.mongo-async-persistor</url>
 		</repository>
 	</distributionManagement>
 </project>
