@@ -218,8 +218,8 @@ public class MongoJsonEncoder {
 	 * 
 	 * @param key
 	 *            is the key of the json element
-	 * @param date
-	 *            is the date string to be convert
+	 * @param id
+	 *            is the id string to be convert
 	 * @return a ObjectId encoded string
 	 */
 	public static String encodeId(final String key, final String id) {

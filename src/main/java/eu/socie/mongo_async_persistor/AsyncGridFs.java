@@ -219,10 +219,7 @@ public class AsyncGridFs extends GridFs {
 	 * 
 	 * @param id
 	 *            is the ObjectId of the file to retrieve
-	 * @param found
-	 *            indicates if the file is found
-	 * @throws IOException
-	 *             is thrown if no file can be found
+	 * @return true if the file file object was found, false otherwise
 	 */
 	public boolean find(final ObjectId id){
 		final Document fileDoc = myFilesCollection.findOne(where(ID_FIELD).equals(id));

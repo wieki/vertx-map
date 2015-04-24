@@ -165,7 +165,7 @@ public class MongoUtil {
 	 * Converts a Bson Document to its Bson form and then encapsulates it in a
 	 * JsonObject
 	 * 
-	 * @param dbObject
+	 * @param document
 	 *            the object to convert
 	 * @return the JsonObject representing the Bson MongoDB form
 	 * @throws java.lang.IllegalArgumentException
