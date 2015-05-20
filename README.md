@@ -16,7 +16,6 @@ to the database, so no worker verticle has to be used. All operations to the dat
 ## Usage
 
 * The module can be configured by providing an configuration object on start-up of the module
-* 
 
 ## Download
 

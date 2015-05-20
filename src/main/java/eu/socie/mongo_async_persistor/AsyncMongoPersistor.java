@@ -42,6 +42,7 @@ import com.allanbank.mongodb.bson.builder.impl.DocumentBuilderImpl;
 import com.allanbank.mongodb.bson.element.ObjectId;
 import com.allanbank.mongodb.bson.element.ObjectIdElement;
 import com.allanbank.mongodb.bson.json.Json;
+import com.allanbank.mongodb.builder.Count;
 import com.allanbank.mongodb.builder.Find;
 import com.allanbank.mongodb.builder.Find.Builder;
 
@@ -73,6 +74,7 @@ public class AsyncMongoPersistor extends Verticle {
 	public static final String EVENT_DB_FIND = "mongo.async.find";
 	public static final String EVENT_DB_UPDATE = "mongo.async.update";
 	public static final String EVENT_DB_DELETE = "mongo.async.delete";
+	public static final String EVENT_DB_COUNT = "mongo.async.count";
 	public static final String EVENT_DB_GET_FILE = "mongo.async.get_file";
 	public static final String EVENT_DB_STORE_FILE = "mongo.async.store_file";
 	public static final String EVENT_DB_CHECK_FILE = "mongo.async.check_file";
@@ -122,24 +124,27 @@ public class AsyncMongoPersistor extends Verticle {
 
 		vertx.eventBus().registerHandler(EVENT_DB_DELETE,
 				(Message<JsonObject> q) -> delete(q));
-		
+
 		vertx.eventBus().registerHandler(EVENT_DB_UPDATE,
 				(Message<JsonObject> q) -> update(q));
 
 		vertx.eventBus().registerHandler(EVENT_DB_GET_FILE,
 				(Message<JsonObject> q) -> getFile(q));
-		
+
 		vertx.eventBus().registerHandler(EVENT_DB_CHECK_FILE,
 				(Message<JsonObject> q) -> checkFile(q));
 
 		vertx.eventBus().registerHandler(EVENT_DB_STORE_FILE,
 				(Message<Buffer> q) -> storeFile(q));
 
+		vertx.eventBus().registerHandler(EVENT_DB_COUNT,
+				(Message<JsonObject> q) -> count(q));
+
 		log.info("Starting Mongo Async Persistor");
 	}
-	
+
 	/**
-	 * Checks if a file exists on basis of its ObjectId. 
+	 * Checks if a file exists on basis of its ObjectId.
 	 * 
 	 * @param fileMsg
 	 *            is the query message that contains the id of the file to
@@ -150,11 +155,10 @@ public class AsyncMongoPersistor extends Verticle {
 
 		JsonObject fileQuery = fileMsg.body();
 		if (!fileQuery.containsField("_id")) {
-			castError(fileMsg, ERROR_NO_ID_QUERY_CODE,
-					ERROR_NO_ID_QUERY_MSG);
+			castError(fileMsg, ERROR_NO_ID_QUERY_CODE, ERROR_NO_ID_QUERY_MSG);
 			return;
 		} else {
-			 id = fileQuery.getString("_id");
+			id = fileQuery.getString("_id");
 		}
 
 		JsonObject found = new JsonObject();
@@ -183,7 +187,7 @@ public class AsyncMongoPersistor extends Verticle {
 						ERROR_NO_ID_QUERY_MSG);
 				return;
 			} else {
-				 id = fileQuery.getString("_id");
+				id = fileQuery.getString("_id");
 			}
 
 			Buffer buffer = new Buffer();
@@ -195,7 +199,7 @@ public class AsyncMongoPersistor extends Verticle {
 		} catch (IllegalArgumentException | IOException e) {
 			// FIXME remove
 			System.out.println(e.getMessage());
-			
+
 			castError(fileMsg, ERROR_NO_FILE_FOR_ID_CODE,
 					String.format(ERROR_NO_FILE_FOR_ID_MSG, id));
 
@@ -209,15 +213,14 @@ public class AsyncMongoPersistor extends Verticle {
 
 			try {
 				ObjectId id = gridFs.write(buffer);
-				
-				 fileMsg.reply(id.toHexString());
+
+				fileMsg.reply(id.toHexString());
 			} catch (IOException e) {
 				castError(fileMsg, ERROR_NO_FILE_FOR_ID_CODE,
 						String.format(e.getMessage()));
 			}
 		}
-		
-		
+
 		// FIXME error handling
 	}
 
@@ -225,13 +228,13 @@ public class AsyncMongoPersistor extends Verticle {
 		if (updateMessage == null)
 			castError(updateMessage, ERROR_QUERY_DOCUMENT_CODE,
 					ERROR_QUERY_DOCUMENT_MSG);
-		
+
 		JsonObject updateQuery = updateMessage.body();
 
 		String collectionName = updateQuery.getString("collection");
 		JsonObject queryDoc = updateQuery.getObject("query");
 		JsonObject updateDoc = updateQuery.getObject("document");
-		
+
 		if (collectionName == null)
 			castError(updateMessage, ERROR_COLLECTION_NAME_CODE,
 					ERROR_COLLECTION_NAME_MSG);
@@ -239,22 +242,22 @@ public class AsyncMongoPersistor extends Verticle {
 		if (updateDoc == null)
 			castError(updateMessage, ERROR_QUERY_DOCUMENT_CODE,
 					ERROR_QUERY_DOCUMENT_MSG);
-		
+
 		if (queryDoc == null)
 			castError(updateMessage, ERROR_QUERY_DOCUMENT_CODE,
 					ERROR_QUERY_DOCUMENT_MSG);
-		
+
 		String queryStr = MongoJsonEncoder.encode(queryDoc);
 		Document query = Json.parse(queryStr);
-		
+
 		String updateStr = MongoJsonEncoder.encode(updateDoc);
 		Document doc = Json.parse(updateStr);
-		
-		Document setDoc = new DocumentBuilderImpl().addDocument("$set", doc).build();
+
+		Document setDoc = new DocumentBuilderImpl().addDocument("$set", doc)
+				.build();
 
 		MongoCollection collection = mongodb.getCollection(collectionName);
 
-		
 		collection.updateAsync((error, results) -> {
 			if (error != null) {
 				castError(updateMessage, -1, error.getMessage());
@@ -262,15 +265,14 @@ public class AsyncMongoPersistor extends Verticle {
 				JsonObject obj = new JsonObject();
 
 				obj.putNumber("query_result", results);
-				
+
 				updateMessage.reply(obj);
 			}
 
 		}, query, setDoc);
-				
+
 	}
-	
-	
+
 	/**
 	 * Perform an asynchronous save on the database of a new document, if the
 	 * document contains an _id the document is updated The query document
@@ -310,7 +312,7 @@ public class AsyncMongoPersistor extends Verticle {
 		Document doc = Json.parse(createStr);
 
 		MongoCollection collection = mongodb.getCollection(collectionName);
-		
+
 		collection.saveAsync((error, results) -> {
 			if (error != null) {
 				castError(saveMessage, -1, error.getMessage());
@@ -327,7 +329,6 @@ public class AsyncMongoPersistor extends Verticle {
 
 		}, doc);
 	}
-
 
 	/**
 	 * Perform an asynchronous delete on the database of an existing document,
@@ -381,6 +382,55 @@ public class AsyncMongoPersistor extends Verticle {
 	}
 
 	/**
+	 * Count will transform a JSON request document into a query suitable for
+	 * MongoDB. The document should at least contain the collection name and a
+	 * query document (this document may be empty)
+	 * 
+	 * @param countMessage
+	 *            contains the query parameters and the query document.
+	 */
+	public void count(Message<JsonObject> countMessage) {
+		if (!(countMessage.body() instanceof JsonObject)) {
+			countMessage.fail(ERROR_WRONG_TYPE_CODE, ERROR_WRONG_TYPE_MSG);
+			throw new VertxException(ERROR_WRONG_TYPE_MSG);
+		}
+
+		JsonObject countQuery = countMessage.body();
+
+		String collectionName = countQuery.getString("collection");
+
+		log.debug("Accessing collection: " + collectionName);
+
+		if (collectionName == null)
+			castError(countMessage, ERROR_COLLECTION_NAME_CODE,
+					ERROR_COLLECTION_NAME_MSG);
+
+		// TODO what if collection doesn't exist?
+		MongoCollection collection = mongodb.getCollection(collectionName);
+
+		JsonObject count = countQuery.getObject("document");
+
+		if (count == null)
+			castError(countMessage, ERROR_QUERY_DOCUMENT_CODE,
+					ERROR_QUERY_DOCUMENT_MSG);
+
+		String findStr = MongoJsonEncoder.encode(count);
+
+		Document doc = Json.parse(findStr);
+
+		Count query = createCountQuery(countQuery, doc);
+
+		collection.countAsync((error, result) -> {
+			if (error != null) {
+				castError(countMessage, -1, error.getMessage());
+			} else {
+				countMessage.reply(result);
+			}
+
+		}, query);
+	}
+
+	/**
 	 * Find will transform a JSON request document into a query suitable for
 	 * MongoDB. The document should at least contain the collection name and a
 	 * query document (this document may be empty)
@@ -415,10 +465,9 @@ public class AsyncMongoPersistor extends Verticle {
 
 		String findStr = MongoJsonEncoder.encode(find);
 
- 		Document doc = Json.parse(findStr);
+		Document doc = Json.parse(findStr);
 
 		Find query = createFindQuery(findQuery, doc);
-		
 
 		collection.findAsync((error, results) -> {
 			if (error != null) {
@@ -461,6 +510,18 @@ public class AsyncMongoPersistor extends Verticle {
 			}
 
 		}
+
+		return query.build();
+	}
+
+	/**
+	 * 
+	 * @param findQuery
+	 * @param doc
+	 * @return
+	 */
+	private Count createCountQuery(JsonObject countQuery, DocumentAssignable doc) {
+		Count.Builder query = new Count.Builder(doc);
 
 		return query.build();
 	}
