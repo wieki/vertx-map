@@ -10,6 +10,7 @@ public class MongoDateUtil {
 		
 	public final static String ISO_DATE_REGEX = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.\\d{3}(-|\\+)\\d{4}";
 	public static final String ISO_DATE_FORMAT ="uuuu-MM-dd'T'HH:mm:ss.SSSXX";
+	public static final String ISO_DATE_FORMAT_OLD ="yyyy-MM-dd'T'HH:mm:ss.SSSZ";
 	
 	/**
 	 * Format a date according to the ISO Date format
